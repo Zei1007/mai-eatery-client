@@ -31,6 +31,7 @@ import {
   RefreshCw,
   Calendar,
   Menu as MenuIcon,
+  PackagePlus,
 } from 'lucide-react';
 import {
   BarChart,
@@ -53,6 +54,7 @@ import {
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { Product, InventoryItem, Order, OrderItem } from './types';
+import { INVENTORY_UNITS } from './constants';
 import { useAuth } from './hooks/useAuth';
 import { useProducts } from './hooks/useProducts';
 import { useInventory } from './hooks/useInventory';
@@ -112,9 +114,17 @@ export default function App() {
     reason: ''
   });
 
+  const [isAddInventoryModalOpen, setIsAddInventoryModalOpen] = useState(false);
+  const [addInventoryForm, setAddInventoryForm] = useState({
+    name: '',
+    quantity: 0,
+    unit: 'kg' as InventoryItem['unit'],
+    minThreshold: 0,
+  });
+
   // Data hooks
   const { products, createProduct, updateProduct, deleteProduct: removeProduct, refetch: refetchProducts } = useProducts(isLoggedIn);
-  const { inventory, adjustStock, importCSV, refetch: refetchInventory } = useInventory(isLoggedIn);
+  const { inventory, adjustStock, importCSV, createItem, refetch: refetchInventory } = useInventory(isLoggedIn);
   const { orders, checkout: checkoutOrder, refetch: refetchOrders } = useOrders(isLoggedIn, dateFilter);
   const { stockLogs, refetch: refetchStockLogs } = useStockLogs(isLoggedIn);
   const { auditLogs, refetch: refetchAuditLogs } = useAuditLogs(isLoggedIn);
@@ -345,6 +355,18 @@ export default function App() {
       setStockAdjustmentForm({ amount: 0, type: 'add', reason: '' });
     } catch {
       alert('Failed to adjust stock.');
+    }
+  };
+
+  const handleAddInventoryItem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      await createItem(addInventoryForm);
+      await refetchAuditLogs();
+      setIsAddInventoryModalOpen(false);
+      setAddInventoryForm({ name: '', quantity: 0, unit: 'kg', minThreshold: 0 });
+    } catch {
+      alert('Failed to add inventory item.');
     }
   };
 
@@ -777,8 +799,14 @@ export default function App() {
           {/* ── INVENTORY ── */}
           {view === 'inventory' && (
             <div className="bg-white rounded-3xl border border-ink/5 shadow-xl shadow-ink/5 overflow-hidden flex flex-col lg:h-full">
-              <div className="p-4 lg:p-8 border-b border-ink/5 shrink-0">
+              <div className="p-4 lg:p-8 border-b border-ink/5 shrink-0 flex items-center justify-between">
                 <h3 className="font-black uppercase tracking-[0.2em] text-xs text-ink/40">Stock Monitoring</h3>
+                <button
+                  onClick={() => setIsAddInventoryModalOpen(true)}
+                  className="flex items-center gap-2 px-4 py-2.5 bg-accent text-white rounded-2xl font-black text-[10px] uppercase tracking-widest hover:bg-accent/90 transition-all shadow-lg shadow-accent/20"
+                >
+                  <PackagePlus size={14} /> <span className="hidden sm:inline">Add Item</span>
+                </button>
               </div>
               <div className="flex-1 overflow-auto">
                 <table className="w-full text-left border-collapse min-w-[500px]">
@@ -1132,6 +1160,86 @@ export default function App() {
                 <button type="button" onClick={() => setIsProductModalOpen(false)} className="flex-1 bg-bg border border-border-custom text-ink/60 py-4 lg:py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-white transition-all">Cancel</button>
                 <button type="submit" className="flex-1 bg-accent text-white py-4 lg:py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-accent/90 transition-all shadow-xl shadow-accent/20">
                   {editingProduct ? 'Update' : 'Create'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Add Inventory Item Modal ── */}
+      {isAddInventoryModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-6 bg-ink/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white w-full sm:max-w-lg rounded-t-[2.5rem] sm:rounded-[2.5rem] shadow-2xl overflow-hidden animate-in slide-in-from-bottom-8 duration-500 max-h-[95vh] overflow-y-auto">
+            <div className="p-6 lg:p-10 border-b border-ink/5 flex items-center justify-between bg-bg sticky top-0 z-10">
+              <div>
+                <h2 className="text-xl lg:text-2xl font-black text-ink tracking-tighter uppercase">Add Inventory Item</h2>
+                <p className="text-[10px] text-ink/40 font-bold mt-1 uppercase tracking-widest">New material or ingredient</p>
+              </div>
+              <button onClick={() => setIsAddInventoryModalOpen(false)} className="p-3 hover:bg-white rounded-2xl text-ink/20 hover:text-ink transition-colors">
+                <X size={24} />
+              </button>
+            </div>
+            <form onSubmit={handleAddInventoryItem} className="p-6 lg:p-10 space-y-6 lg:space-y-8">
+              <div className="grid grid-cols-2 gap-5 lg:gap-8">
+                <div className="space-y-3 col-span-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-ink/40 ml-1">Item Name</label>
+                  <input
+                    required
+                    type="text"
+                    value={addInventoryForm.name}
+                    onChange={e => setAddInventoryForm(p => ({ ...p, name: e.target.value }))}
+                    className="w-full bg-bg border border-border-custom rounded-2xl py-4 px-6 text-sm font-bold focus:outline-none focus:border-accent transition-colors"
+                    placeholder="e.g. Rice, Cooking Oil, Eggs"
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-ink/40 ml-1">Initial Quantity</label>
+                  <input
+                    required
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={addInventoryForm.quantity}
+                    onChange={e => setAddInventoryForm(p => ({ ...p, quantity: Number(e.target.value) }))}
+                    className="w-full bg-bg border border-border-custom rounded-2xl py-4 px-6 text-sm font-bold focus:outline-none focus:border-accent transition-colors"
+                  />
+                </div>
+
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-ink/40 ml-1">Unit</label>
+                  <select
+                    value={addInventoryForm.unit}
+                    onChange={e => setAddInventoryForm(p => ({ ...p, unit: e.target.value as InventoryItem['unit'] }))}
+                    className="w-full bg-bg border border-border-custom rounded-2xl py-4 px-6 text-sm font-bold focus:outline-none focus:border-accent transition-colors appearance-none"
+                  >
+                    {INVENTORY_UNITS.map(u => (
+                      <option key={u} value={u}>{u}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-3 col-span-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-ink/40 ml-1">Critical Threshold</label>
+                  <input
+                    required
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={addInventoryForm.minThreshold}
+                    onChange={e => setAddInventoryForm(p => ({ ...p, minThreshold: Number(e.target.value) }))}
+                    className="w-full bg-bg border border-border-custom rounded-2xl py-4 px-6 text-sm font-bold focus:outline-none focus:border-accent transition-colors"
+                    placeholder="Alert when stock falls below this"
+                  />
+                  <p className="text-[10px] text-ink/30 font-bold ml-1 uppercase tracking-wider">Stock below this value will show as Critical</p>
+                </div>
+              </div>
+
+              <div className="flex gap-4">
+                <button type="button" onClick={() => setIsAddInventoryModalOpen(false)} className="flex-1 bg-bg border border-border-custom text-ink/60 py-4 lg:py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-white transition-all">Cancel</button>
+                <button type="submit" className="flex-1 bg-accent text-white py-4 lg:py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-accent/20 hover:bg-accent/90 transition-all">
+                  Add Item
                 </button>
               </div>
             </form>

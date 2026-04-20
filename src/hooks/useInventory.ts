@@ -34,10 +34,15 @@ export function useInventory(enabled: boolean) {
     await refetch();
   }, [refetch]);
 
+  const createItem = useCallback(async (data: Omit<InventoryItem, 'id'>) => {
+    await inventoryApi.create(data);
+    await refetch();
+  }, [refetch]);
+
   const importCSV = useCallback(async (file: File) => {
     await inventoryApi.importCSV(file);
     await refetch();
   }, [refetch]);
 
-  return { inventory, loading, refetch, adjustStock, importCSV };
+  return { inventory, loading, refetch, adjustStock, importCSV, createItem };
 }
