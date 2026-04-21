@@ -17,7 +17,8 @@ export const inventoryApi = {
   update: (id: string, data: Partial<Omit<InventoryItem, 'id'>>) =>
     apiClient.put<InventoryItem>(`/inventory/${id}`, data),
 
-  delete: (id: string) => apiClient.delete(`/inventory/${id}`),
+  delete: (id: string, reason?: string) =>
+    apiClient.delete(`/inventory/${id}`, { data: { reason } }),
 
   adjust: (id: string, data: StockAdjust) =>
     apiClient.post<InventoryItem>(`/inventory/${id}/adjust`, data),

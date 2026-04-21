@@ -387,8 +387,8 @@ export default function App() {
     e.preventDefault();
     if (!removingInventoryItem) return;
     try {
-      await deleteItem(removingInventoryItem.id);
-      await refetchAuditLogs();
+      await deleteItem(removingInventoryItem.id, removeInventoryReason);
+      await Promise.all([refetchAuditLogs(), refetchStockLogs()]);
       closeRemoveInventoryModal();
     } catch {
       alert('Failed to remove inventory item.');
