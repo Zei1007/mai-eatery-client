@@ -5,6 +5,8 @@ export interface Product {
   price: number;
   category: 'Meals' | 'Drinks' | 'Sides' | 'Others';
   image?: string;
+  deductionQuantity?: number;
+  deductionUnit?: InventoryItem['unit'];
 }
 
 export interface InventoryItem {

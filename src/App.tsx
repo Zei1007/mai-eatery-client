@@ -103,7 +103,8 @@ export default function App() {
     name: '',
     price: 0,
     category: 'Others',
-    image: ''
+    image: '',
+    deductionUnit: 'pcs'
   });
 
   const [isStockModalOpen, setIsStockModalOpen] = useState(false);
@@ -305,7 +306,7 @@ export default function App() {
 
   const addProduct = () => {
     setEditingProduct(null);
-    setProductForm({ name: '', price: 0, category: 'Others', image: '' });
+    setProductForm({ name: '', price: 0, category: 'Others', image: '', deductionUnit: 'pcs' });
     setIsProductModalOpen(true);
   };
 
@@ -1154,6 +1155,20 @@ export default function App() {
                       className="flex-1 bg-bg border border-border-custom rounded-2xl py-4 px-6 text-sm font-bold focus:outline-none focus:border-accent transition-colors"
                       placeholder="https://..." />
                   </div>
+                </div>
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-ink/40 ml-1">Quantity per Order</label>
+                  <input type="number" value={productForm.deductionQuantity ?? ''}
+                    onChange={e => setProductForm(p => ({ ...p, deductionQuantity: e.target.value === '' ? undefined : Number(e.target.value) }))}
+                    className="w-full bg-bg border border-border-custom rounded-2xl py-4 px-6 text-sm font-bold focus:outline-none focus:border-accent transition-colors"
+                    placeholder="1" step="0.01" min="0" />
+                </div>
+                <div className="space-y-3">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-ink/40 ml-1">Unit</label>
+                  <select value={productForm.deductionUnit ?? 'pcs'} onChange={e => setProductForm(p => ({ ...p, deductionUnit: e.target.value as Product['deductionUnit'] }))}
+                    className="w-full bg-bg border border-border-custom rounded-2xl py-4 px-6 text-sm font-bold focus:outline-none focus:border-accent transition-colors appearance-none">
+                    {INVENTORY_UNITS.map(u => <option key={u}>{u}</option>)}
+                  </select>
                 </div>
               </div>
               <div className="flex gap-4">
