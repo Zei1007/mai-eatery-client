@@ -33,6 +33,7 @@ import {
   Menu as MenuIcon,
   PackagePlus,
   ScrollText,
+  DatabaseZap,
 } from 'lucide-react';
 import {
   BarChart,
@@ -64,6 +65,7 @@ import { useStockLogs } from './hooks/useStockLogs';
 import { useAuditLogs } from './hooks/useAuditLogs';
 import { useReports } from './hooks/useReports';
 import { exportsApi } from './api/exports';
+import apiClient from './api/client';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -300,6 +302,17 @@ export default function App() {
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleLogout = async () => { await logout(); };
 
+  const handleWipeDb = async () => {
+    if (!window.confirm('⚠️ This will permanently delete ALL data (products, inventory, orders, logs). Are you sure?')) return;
+    try {
+      await apiClient.post('/admin/reset-db');
+      alert('Database wiped. Refreshing...');
+      window.location.reload();
+    } catch {
+      alert('Failed to wipe database.');
+    }
+  };
+
   // Convert g→kg and ml→liters so the backend always receives base inventory units
   const toBaseUnit = (qty: number, unit: string): { quantity: number; unit: string } => {
     if (unit === 'g') return { quantity: qty / 1000, unit: 'kg' };
@@ -457,6 +470,12 @@ export default function App() {
           className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-[10px] font-black tracking-[0.2em] text-danger-custom hover:bg-danger-custom/10 transition-all mt-6 lg:mt-10"
         >
           <LogOut size={18} /> LOGOUT
+        </button>
+        <button
+          onClick={handleWipeDb}
+          className="w-full flex items-center gap-4 px-5 py-4 rounded-2xl text-[10px] font-black tracking-[0.2em] text-orange-400 hover:bg-orange-400/10 transition-all mt-2"
+        >
+          <DatabaseZap size={18} /> WIPE DATABASE
         </button>
       </nav>
 
