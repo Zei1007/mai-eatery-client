@@ -32,6 +32,7 @@ import {
   Calendar,
   Menu as MenuIcon,
   PackagePlus,
+  ScrollText,
 } from 'lucide-react';
 import {
   BarChart,
@@ -68,11 +69,12 @@ function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-type View = 'dashboard' | 'pos' | 'menu' | 'inventory' | 'reports' | 'logs' | 'audit';
+type View = 'dashboard' | 'pos' | 'orders' | 'menu' | 'inventory' | 'reports' | 'logs' | 'audit';
 
 const VIEW_LABELS: Record<View, string> = {
   dashboard: 'Dashboard',
   pos: 'Ordering',
+  orders: 'Transactions',
   menu: 'Menu',
   inventory: 'Inventory',
   logs: 'Stock Logs',
@@ -296,13 +298,27 @@ export default function App() {
   // ── Handlers ──────────────────────────────────────────────────────────────
   const handleLogout = async () => { await logout(); };
 
+  // Convert g→kg and ml→liters so the backend always receives base inventory units
+  const toBaseUnit = (qty: number, unit: string): { quantity: number; unit: string } => {
+    if (unit === 'g') return { quantity: qty / 1000, unit: 'kg' };
+    if (unit === 'ml') return { quantity: qty / 1000, unit: 'liters' };
+    return { quantity: qty, unit };
+  };
+
   const handleCheckout = async () => {
     if (cart.length === 0) return;
     try {
-      await checkoutOrder(cart.map(i => ({ productId: i.productId, quantity: i.quantity, ingredients: i.ingredients })));
+      await checkoutOrder(cart.map(i => ({
+        productId: i.productId,
+        quantity: i.quantity,
+        ingredients: (i.ingredients ?? []).map(ing => {
+          const converted = toBaseUnit(ing.quantity, ing.unit);
+          return { ...ing, quantity: converted.quantity, unit: converted.unit };
+        }),
+      })));
       setCart([]);
       setIsMobileCartOpen(false);
-      await Promise.all([refetchInventory(), refetchStockLogs(), refetchAuditLogs(), refetchReports()]);
+      await Promise.all([refetchInventory(), refetchStockLogs(), refetchAuditLogs(), refetchReports(), refetchOrders()]);
       alert('Order processed successfully!');
     } catch {
       alert('Failed to process order. Please try again.');
@@ -428,6 +444,7 @@ export default function App() {
       <nav className="flex-1 px-4 py-6 lg:py-8 space-y-1 lg:space-y-2 overflow-y-auto">
         <NavItem active={view === 'dashboard'} onClick={() => setView('dashboard')} icon={<LayoutDashboard size={18} />} label="DASHBOARD" />
         <NavItem active={view === 'pos'} onClick={() => setView('pos')} icon={<ShoppingCart size={18} />} label="ORDERING" />
+        <NavItem active={view === 'orders'} onClick={() => setView('orders')} icon={<ScrollText size={18} />} label="TRANSACTIONS" />
         <NavItem active={view === 'menu'} onClick={() => setView('menu')} icon={<Edit size={18} />} label="MENU" />
         <NavItem active={view === 'inventory'} onClick={() => setView('inventory')} icon={<Package size={18} />} label="INVENTORY" />
         <NavItem active={view === 'logs'} onClick={() => setView('logs')} icon={<History size={18} />} label="STOCK LOGS" />
@@ -774,6 +791,54 @@ export default function App() {
                   {cartCount} item{cartCount !== 1 ? 's' : ''} · ₱{cartTotal.toLocaleString()}
                 </button>
               )}
+            </div>
+          )}
+
+          {/* ── TRANSACTIONS ── */}
+          {view === 'orders' && (
+            <div className="bg-white rounded-3xl border border-ink/5 shadow-xl shadow-ink/5 overflow-hidden flex flex-col lg:h-full">
+              <div className="p-4 lg:p-8 border-b border-ink/5 flex items-center justify-between shrink-0">
+                <h3 className="font-black uppercase tracking-[0.2em] text-xs text-ink/40">Transaction History</h3>
+              </div>
+              <div className="overflow-auto flex-1">
+                <table className="w-full text-left text-sm">
+                  <thead className="sticky top-0 bg-white border-b border-ink/5 z-10">
+                    <tr className="text-[10px] font-black uppercase tracking-[0.15em] text-ink/30">
+                      <th className="px-4 lg:px-8 py-4 lg:py-5">Date & Time</th>
+                      <th className="px-4 lg:px-8 py-4 lg:py-5">Order ID</th>
+                      <th className="px-4 lg:px-8 py-4 lg:py-5">Items</th>
+                      <th className="px-4 lg:px-8 py-4 lg:py-5 text-right">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-ink/5">
+                    {orders.slice().sort((a, b) => b.timestamp - a.timestamp).map(order => (
+                      <tr key={order.id} className="hover:bg-bg/50 transition-colors align-top">
+                        <td className="px-4 lg:px-8 py-4 lg:py-5 text-[11px] font-bold text-ink/40 whitespace-nowrap">
+                          {format(order.timestamp, 'MMM d, yyyy')}<br />
+                          <span className="text-ink/25">{format(order.timestamp, 'HH:mm')}</span>
+                        </td>
+                        <td className="px-4 lg:px-8 py-4 lg:py-5 text-[11px] font-mono text-ink/30">{order.id}</td>
+                        <td className="px-4 lg:px-8 py-4 lg:py-5">
+                          <ul className="space-y-0.5">
+                            {order.items.map((item, idx) => (
+                              <li key={idx} className="text-xs font-bold text-ink/70">
+                                {item.quantity}× {item.name}
+                                <span className="text-ink/30 font-medium ml-1">₱{item.price.toFixed(2)}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </td>
+                        <td className="px-4 lg:px-8 py-4 lg:py-5 font-black text-base text-accent tracking-tighter text-right whitespace-nowrap">
+                          ₱{order.total.toFixed(2)}
+                        </td>
+                      </tr>
+                    ))}
+                    {orders.length === 0 && (
+                      <tr><td colSpan={4} className="px-8 py-20 text-center text-ink/20 font-black uppercase tracking-[0.3em] text-[10px]">No transactions yet.</td></tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 

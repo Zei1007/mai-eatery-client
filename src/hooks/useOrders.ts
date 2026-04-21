@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Order } from '../types';
+import { Order, ProductIngredient } from '../types';
 import { ordersApi } from '../api/orders';
 import { startOfDay, endOfDay, parseISO } from 'date-fns';
 
@@ -35,7 +35,7 @@ export function useOrders(enabled: boolean, dateFilter: DateFilter) {
     refetch();
   }, [refetch]);
 
-  const checkout = useCallback(async (items: { productId: string; quantity: number }[]) => {
+  const checkout = useCallback(async (items: { productId: string; quantity: number; ingredients?: ProductIngredient[] }[]) => {
     const res = await ordersApi.checkout(items);
     await refetch();
     return res.data;
