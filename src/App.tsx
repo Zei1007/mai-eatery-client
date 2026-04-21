@@ -183,7 +183,7 @@ export default function App() {
           item.productId === product.id ? { ...item, quantity: item.quantity + 1 } : item
         );
       }
-      return [...prev, { productId: product.id, name: product.name, price: product.price, quantity: 1 }];
+      return [...prev, { productId: product.id, name: product.name, price: product.price, quantity: 1, ingredients: product.ingredients ?? [] }];
     });
   };
 
@@ -299,7 +299,7 @@ export default function App() {
   const handleCheckout = async () => {
     if (cart.length === 0) return;
     try {
-      await checkoutOrder(cart.map(i => ({ productId: i.productId, quantity: i.quantity })));
+      await checkoutOrder(cart.map(i => ({ productId: i.productId, quantity: i.quantity, ingredients: i.ingredients })));
       setCart([]);
       setIsMobileCartOpen(false);
       await Promise.all([refetchInventory(), refetchStockLogs(), refetchAuditLogs(), refetchReports()]);
@@ -387,6 +387,14 @@ export default function App() {
     e.preventDefault();
     if (!removingInventoryItem) return;
     try {
+      // Log the full stock reduction before deleting so it appears in stock logs
+      if (removingInventoryItem.quantity > 0) {
+        await adjustStock(removingInventoryItem.id, {
+          amount: removingInventoryItem.quantity,
+          type: 'reduction',
+          reason: `Item deleted — ${removeInventoryReason}`,
+        });
+      }
       await deleteItem(removingInventoryItem.id, removeInventoryReason);
       await Promise.all([refetchAuditLogs(), refetchStockLogs()]);
       closeRemoveInventoryModal();
@@ -903,15 +911,17 @@ export default function App() {
                   </thead>
                   <tbody className="divide-y divide-ink/5">
                     {stockLogs.map(log => {
-                      const item = inventory.find(i => i.id === log.itemId);
+                      const invItem = inventory.find(i => String(i.id) === String(log.itemId));
+                      const displayName = log.itemName || invItem?.name || `Item #${log.itemId}`;
+                      const displayUnit = log.itemUnit || invItem?.unit || '';
                       return (
                         <tr key={log.id} className="hover:bg-bg/50 transition-colors">
                           <td className="px-4 lg:px-8 py-4 lg:py-5 text-[11px] font-bold text-ink/40 whitespace-nowrap">{format(log.timestamp, 'MMM d, HH:mm')}</td>
-                          <td className="px-4 lg:px-8 py-4 lg:py-5 font-bold text-sm text-ink/80">{item?.name || 'Unknown'}</td>
+                          <td className="px-4 lg:px-8 py-4 lg:py-5 font-bold text-sm text-ink/80">{displayName}</td>
                           <td className="px-4 lg:px-8 py-4 lg:py-5">
                             <div className={cn("flex items-center gap-1 font-black text-sm", log.change > 0 ? "text-success-custom" : "text-danger-custom")}>
                               {log.change > 0 ? <Plus size={12} /> : <Minus size={12} />}
-                              {Math.abs(log.change).toFixed(2)} {item?.unit}
+                              {Math.abs(log.change).toFixed(2)} {displayUnit}
                             </div>
                           </td>
                           <td className="px-4 lg:px-8 py-4 lg:py-5">

@@ -1,9 +1,10 @@
 import apiClient from './client';
-import { Order } from '../types';
+import { Order, ProductIngredient } from '../types';
 
 interface CartItem {
   productId: string;
   quantity: number;
+  ingredients?: ProductIngredient[];
 }
 
 export const ordersApi = {

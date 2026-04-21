@@ -42,6 +42,8 @@ export interface Order {
 export interface StockLog {
   id: string;
   itemId: string;
+  itemName?: string;
+  itemUnit?: string;
   change: number;
   type: 'addition' | 'reduction' | 'sale';
   timestamp: number;
