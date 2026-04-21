@@ -97,6 +97,8 @@ export default function App() {
   // Mobile nav + cart drawer
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
   const [isMobileCartOpen, setIsMobileCartOpen] = useState(false);
+  const [orderSearch, setOrderSearch] = useState('');
+  const [orderSortDesc, setOrderSortDesc] = useState(true);
 
   // Modal states
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
@@ -795,52 +797,84 @@ export default function App() {
           )}
 
           {/* ── TRANSACTIONS ── */}
-          {view === 'orders' && (
-            <div className="bg-white rounded-3xl border border-ink/5 shadow-xl shadow-ink/5 overflow-hidden flex flex-col lg:h-full">
-              <div className="p-4 lg:p-8 border-b border-ink/5 flex items-center justify-between shrink-0">
-                <h3 className="font-black uppercase tracking-[0.2em] text-xs text-ink/40">Transaction History</h3>
-              </div>
-              <div className="overflow-auto flex-1">
-                <table className="w-full text-left text-sm">
-                  <thead className="sticky top-0 bg-white border-b border-ink/5 z-10">
-                    <tr className="text-[10px] font-black uppercase tracking-[0.15em] text-ink/30">
-                      <th className="px-4 lg:px-8 py-4 lg:py-5">Date & Time</th>
-                      <th className="px-4 lg:px-8 py-4 lg:py-5">Order ID</th>
-                      <th className="px-4 lg:px-8 py-4 lg:py-5">Items</th>
-                      <th className="px-4 lg:px-8 py-4 lg:py-5 text-right">Total</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-ink/5">
-                    {orders.slice().sort((a, b) => b.timestamp - a.timestamp).map(order => (
-                      <tr key={order.id} className="hover:bg-bg/50 transition-colors align-top">
-                        <td className="px-4 lg:px-8 py-4 lg:py-5 text-[11px] font-bold text-ink/40 whitespace-nowrap">
-                          {format(order.timestamp, 'MMM d, yyyy')}<br />
-                          <span className="text-ink/25">{format(order.timestamp, 'HH:mm')}</span>
-                        </td>
-                        <td className="px-4 lg:px-8 py-4 lg:py-5 text-[11px] font-mono text-ink/30">{order.id}</td>
-                        <td className="px-4 lg:px-8 py-4 lg:py-5">
-                          <ul className="space-y-0.5">
-                            {order.items.map((item, idx) => (
-                              <li key={idx} className="text-xs font-bold text-ink/70">
-                                {item.quantity}× {item.name}
-                                <span className="text-ink/30 font-medium ml-1">₱{item.price.toFixed(2)}</span>
-                              </li>
-                            ))}
-                          </ul>
-                        </td>
-                        <td className="px-4 lg:px-8 py-4 lg:py-5 font-black text-base text-accent tracking-tighter text-right whitespace-nowrap">
-                          ₱{order.total.toFixed(2)}
-                        </td>
+          {view === 'orders' && (() => {
+            const q = orderSearch.trim().toLowerCase();
+            const filtered = orders
+              .filter(o =>
+                !q ||
+                o.items.some(i => i.name.toLowerCase().includes(q)) ||
+                o.total.toFixed(2).includes(q)
+              )
+              .slice()
+              .sort((a, b) => orderSortDesc ? b.timestamp - a.timestamp : a.timestamp - b.timestamp);
+            return (
+              <div className="bg-white rounded-3xl border border-ink/5 shadow-xl shadow-ink/5 overflow-hidden flex flex-col lg:h-full">
+                <div className="p-4 lg:p-8 border-b border-ink/5 shrink-0 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-black uppercase tracking-[0.2em] text-xs text-ink/40">Transaction History</h3>
+                    <button
+                      onClick={() => setOrderSortDesc(d => !d)}
+                      className="flex items-center gap-1.5 px-3 py-2 bg-bg border border-ink/5 rounded-xl hover:border-accent/30 hover:text-accent transition-all shadow-sm text-[10px] font-black uppercase tracking-widest whitespace-nowrap"
+                    >
+                      <Calendar size={13} />
+                      {orderSortDesc ? 'Newest First' : 'Oldest First'}
+                    </button>
+                  </div>
+                  <div className="relative">
+                    <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-ink/25 pointer-events-none" />
+                    <input
+                      type="text"
+                      value={orderSearch}
+                      onChange={e => setOrderSearch(e.target.value)}
+                      placeholder="Search by item name or total amount..."
+                      className="w-full bg-bg border border-border-custom rounded-2xl py-3 pl-10 pr-4 text-sm font-bold focus:outline-none focus:border-accent transition-colors"
+                    />
+                  </div>
+                </div>
+                <div className="overflow-auto flex-1">
+                  <table className="w-full text-left text-sm">
+                    <thead className="sticky top-0 bg-white border-b border-ink/5 z-10">
+                      <tr className="text-[10px] font-black uppercase tracking-[0.15em] text-ink/30">
+                        <th className="px-4 lg:px-8 py-4 lg:py-5">Date & Time</th>
+                        <th className="px-4 lg:px-8 py-4 lg:py-5">Order ID</th>
+                        <th className="px-4 lg:px-8 py-4 lg:py-5">Items</th>
+                        <th className="px-4 lg:px-8 py-4 lg:py-5 text-right">Total</th>
                       </tr>
-                    ))}
-                    {orders.length === 0 && (
-                      <tr><td colSpan={4} className="px-8 py-20 text-center text-ink/20 font-black uppercase tracking-[0.3em] text-[10px]">No transactions yet.</td></tr>
-                    )}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody className="divide-y divide-ink/5">
+                      {filtered.map(order => (
+                        <tr key={order.id} className="hover:bg-bg/50 transition-colors align-top">
+                          <td className="px-4 lg:px-8 py-4 lg:py-5 text-[11px] font-bold text-ink/40 whitespace-nowrap">
+                            {format(order.timestamp, 'MMM d, yyyy')}<br />
+                            <span className="text-ink/25">{format(order.timestamp, 'HH:mm')}</span>
+                          </td>
+                          <td className="px-4 lg:px-8 py-4 lg:py-5 text-[11px] font-mono text-ink/30">{order.id}</td>
+                          <td className="px-4 lg:px-8 py-4 lg:py-5">
+                            <ul className="space-y-0.5">
+                              {order.items.map((item, idx) => (
+                                <li key={idx} className="text-xs font-bold text-ink/70">
+                                  {item.quantity}× {item.name}
+                                  <span className="text-ink/30 font-medium ml-1">₱{item.price.toFixed(2)}</span>
+                                </li>
+                              ))}
+                            </ul>
+                          </td>
+                          <td className="px-4 lg:px-8 py-4 lg:py-5 font-black text-base text-accent tracking-tighter text-right whitespace-nowrap">
+                            ₱{order.total.toFixed(2)}
+                          </td>
+                        </tr>
+                      ))}
+                      {filtered.length === 0 && (
+                        <tr><td colSpan={4} className="px-8 py-20 text-center text-ink/20 font-black uppercase tracking-[0.3em] text-[10px]">
+                          {orders.length === 0 ? 'No transactions yet.' : 'No results match your search.'}
+                        </td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* ── MENU ── */}
           {view === 'menu' && (
