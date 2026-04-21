@@ -1346,7 +1346,7 @@ export default function App() {
                         const firstUnit = (item ? COMPATIBLE_INGREDIENT_UNITS[item.unit]?.[0] : 'pcs') as IngredientUnit;
                         setIngredientForm(f => ({ ...f, inventoryItemId: e.target.value, unit: firstUnit ?? 'pcs' }));
                       }}
-                      className="flex-1 min-w-0 bg-bg border border-border-custom rounded-2xl py-3 px-4 text-sm font-bold focus:outline-none focus:border-accent transition-colors appearance-none">
+                      className="flex-1 bg-bg border border-border-custom rounded-2xl py-3 px-4 text-sm font-bold text-ink focus:outline-none focus:border-accent transition-colors">
                       <option value="">Select ingredient...</option>
                       {inventory.map(item => (
                         <option key={item.id} value={item.id}>{item.name} ({item.unit})</option>
