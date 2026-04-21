@@ -1,12 +1,18 @@
 
+export interface ProductIngredient {
+  inventoryItemId: string;
+  inventoryItemName: string;
+  quantity: number;
+  unit: InventoryItem['unit'];
+}
+
 export interface Product {
   id: string;
   name: string;
   price: number;
   category: 'Meals' | 'Drinks' | 'Sides' | 'Others';
   image?: string;
-  deductionQuantity?: number;
-  deductionUnit?: InventoryItem['unit'];
+  ingredients?: ProductIngredient[];
 }
 
 export interface InventoryItem {

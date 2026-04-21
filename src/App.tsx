@@ -53,7 +53,7 @@ import {
 } from 'date-fns';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { Product, InventoryItem, Order, OrderItem } from './types';
+import { Product, ProductIngredient, InventoryItem, Order, OrderItem } from './types';
 import { INVENTORY_UNITS } from './constants';
 import { useAuth } from './hooks/useAuth';
 import { useProducts } from './hooks/useProducts';
@@ -104,8 +104,9 @@ export default function App() {
     price: 0,
     category: 'Others',
     image: '',
-    deductionUnit: 'pcs'
+    ingredients: []
   });
+  const [ingredientForm, setIngredientForm] = useState({ inventoryItemId: '', quantity: 1 });
 
   const [isStockModalOpen, setIsStockModalOpen] = useState(false);
   const [selectedStockItem, setSelectedStockItem] = useState<InventoryItem | null>(null);
@@ -310,7 +311,7 @@ export default function App() {
 
   const addProduct = () => {
     setEditingProduct(null);
-    setProductForm({ name: '', price: 0, category: 'Others', image: '', deductionUnit: 'pcs' });
+    setProductForm({ name: '', price: 0, category: 'Others', image: '', ingredients: [] });
     setIsProductModalOpen(true);
   };
 
@@ -328,6 +329,7 @@ export default function App() {
       }
       await refetchAuditLogs();
       setIsProductModalOpen(false);
+      setIngredientForm({ inventoryItemId: '', quantity: 1 });
     } catch {
       alert('Failed to save product.');
     }
@@ -803,7 +805,7 @@ export default function App() {
                         <td className="px-4 lg:px-8 py-4 lg:py-5 font-black text-lg text-accent tracking-tighter">₱{product.price.toFixed(2)}</td>
                         <td className="px-4 lg:px-8 py-4 lg:py-5 text-right">
                           <div className="flex items-center justify-end gap-1">
-                            <button onClick={() => { setEditingProduct(product); setProductForm(product); setIsProductModalOpen(true); }} className="p-2 text-ink/40 hover:text-accent transition-colors">
+                            <button onClick={() => { setEditingProduct(product); setProductForm({ ...product, ingredients: product.ingredients ?? [] }); setIsProductModalOpen(true); }} className="p-2 text-ink/40 hover:text-accent transition-colors">
                               <Edit size={16} />
                             </button>
                             <button onClick={() => handleDeleteProduct(product.id)} className="p-2 text-ink/40 hover:text-danger-custom transition-colors">
@@ -1186,19 +1188,63 @@ export default function App() {
                       placeholder="https://..." />
                   </div>
                 </div>
+                {/* Ingredients */}
                 <div className="space-y-3">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-ink/40 ml-1">Quantity per Order</label>
-                  <input type="number" value={productForm.deductionQuantity ?? ''}
-                    onChange={e => setProductForm(p => ({ ...p, deductionQuantity: e.target.value === '' ? undefined : Number(e.target.value) }))}
-                    className="w-full bg-bg border border-border-custom rounded-2xl py-4 px-6 text-sm font-bold focus:outline-none focus:border-accent transition-colors"
-                    placeholder="1" step="0.01" min="0" />
-                </div>
-                <div className="space-y-3">
-                  <label className="text-[10px] font-black uppercase tracking-widest text-ink/40 ml-1">Unit</label>
-                  <select value={productForm.deductionUnit ?? 'pcs'} onChange={e => setProductForm(p => ({ ...p, deductionUnit: e.target.value as Product['deductionUnit'] }))}
-                    className="w-full bg-bg border border-border-custom rounded-2xl py-4 px-6 text-sm font-bold focus:outline-none focus:border-accent transition-colors appearance-none">
-                    {INVENTORY_UNITS.map(u => <option key={u}>{u}</option>)}
-                  </select>
+                  <label className="text-[10px] font-black uppercase tracking-widest text-ink/40 ml-1">Ingredients (Stock Deductions per Order)</label>
+
+                  {/* Existing ingredient rows */}
+                  {(productForm.ingredients ?? []).length > 0 && (
+                    <div className="space-y-2">
+                      {(productForm.ingredients ?? []).map((ing, idx) => (
+                        <div key={idx} className="flex items-center gap-2 bg-bg border border-border-custom rounded-2xl px-4 py-3">
+                          <span className="flex-1 text-sm font-bold text-ink">{ing.inventoryItemName}</span>
+                          <span className="text-xs text-ink/50 font-bold">{ing.quantity} {ing.unit}</span>
+                          <button type="button"
+                            onClick={() => setProductForm(p => ({ ...p, ingredients: (p.ingredients ?? []).filter((_, i) => i !== idx) }))}
+                            className="text-danger-custom hover:text-danger-custom/70 transition-colors">
+                            <X size={14} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Add ingredient row */}
+                  <div className="flex gap-2">
+                    <select
+                      value={ingredientForm.inventoryItemId}
+                      onChange={e => setIngredientForm(f => ({ ...f, inventoryItemId: e.target.value }))}
+                      className="flex-1 bg-bg border border-border-custom rounded-2xl py-3 px-4 text-sm font-bold focus:outline-none focus:border-accent transition-colors appearance-none">
+                      <option value="">Select ingredient...</option>
+                      {inventory.map(item => (
+                        <option key={item.id} value={item.id}>{item.name} ({item.unit})</option>
+                      ))}
+                    </select>
+                    <input
+                      type="number"
+                      value={ingredientForm.quantity}
+                      onChange={e => setIngredientForm(f => ({ ...f, quantity: Number(e.target.value) }))}
+                      className="w-20 bg-bg border border-border-custom rounded-2xl py-3 px-3 text-sm font-bold focus:outline-none focus:border-accent transition-colors"
+                      min="0.01" step="0.01" placeholder="Qty" />
+                    <button type="button"
+                      onClick={() => {
+                        const item = inventory.find(i => i.id === ingredientForm.inventoryItemId);
+                        if (!item || !ingredientForm.quantity) return;
+                        setProductForm(p => ({
+                          ...p,
+                          ingredients: [...(p.ingredients ?? []), {
+                            inventoryItemId: item.id,
+                            inventoryItemName: item.name,
+                            quantity: ingredientForm.quantity,
+                            unit: item.unit
+                          } as ProductIngredient]
+                        }));
+                        setIngredientForm({ inventoryItemId: '', quantity: 1 });
+                      }}
+                      className="flex items-center gap-1 px-4 py-3 bg-accent text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-accent/90 transition-all">
+                      <Plus size={14} />
+                    </button>
+                  </div>
                 </div>
               </div>
               <div className="flex gap-4">
