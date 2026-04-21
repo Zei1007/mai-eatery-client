@@ -122,9 +122,13 @@ export default function App() {
     minThreshold: 0,
   });
 
+  const [isRemoveInventoryModalOpen, setIsRemoveInventoryModalOpen] = useState(false);
+  const [removingInventoryItem, setRemovingInventoryItem] = useState<InventoryItem | null>(null);
+  const [removeInventoryReason, setRemoveInventoryReason] = useState('');
+
   // Data hooks
   const { products, createProduct, updateProduct, deleteProduct: removeProduct, refetch: refetchProducts } = useProducts(isLoggedIn);
-  const { inventory, adjustStock, importCSV, createItem, refetch: refetchInventory } = useInventory(isLoggedIn);
+  const { inventory, adjustStock, importCSV, createItem, deleteItem, refetch: refetchInventory } = useInventory(isLoggedIn);
   const { orders, checkout: checkoutOrder, refetch: refetchOrders } = useOrders(isLoggedIn, dateFilter);
   const { stockLogs, refetch: refetchStockLogs } = useStockLogs(isLoggedIn);
   const { auditLogs, refetch: refetchAuditLogs } = useAuditLogs(isLoggedIn);
@@ -367,6 +371,24 @@ export default function App() {
       setAddInventoryForm({ name: '', quantity: 0, unit: 'kg', minThreshold: 0 });
     } catch {
       alert('Failed to add inventory item.');
+    }
+  };
+
+  const closeRemoveInventoryModal = () => {
+    setIsRemoveInventoryModalOpen(false);
+    setRemovingInventoryItem(null);
+    setRemoveInventoryReason('');
+  };
+
+  const handleRemoveInventoryItem = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!removingInventoryItem) return;
+    try {
+      await deleteItem(removingInventoryItem.id);
+      await refetchAuditLogs();
+      closeRemoveInventoryModal();
+    } catch {
+      alert('Failed to remove inventory item.');
     }
   };
 
@@ -836,12 +858,20 @@ export default function App() {
                           }
                         </td>
                         <td className="px-4 lg:px-8 py-4 lg:py-5">
-                          <button
-                            onClick={() => { setSelectedStockItem(item); setIsStockModalOpen(true); }}
-                            className="flex items-center gap-1.5 px-3 py-2 bg-bg border border-ink/5 rounded-xl hover:border-accent/30 hover:text-accent transition-all shadow-sm text-[10px] font-black uppercase tracking-widest whitespace-nowrap"
-                          >
-                            <Settings2 size={13} /> <span className="hidden sm:inline">Adjust </span>Stock
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => { setSelectedStockItem(item); setIsStockModalOpen(true); }}
+                              className="flex items-center gap-1.5 px-3 py-2 bg-bg border border-ink/5 rounded-xl hover:border-accent/30 hover:text-accent transition-all shadow-sm text-[10px] font-black uppercase tracking-widest whitespace-nowrap"
+                            >
+                              <Settings2 size={13} /> <span className="hidden sm:inline">Adjust </span>Stock
+                            </button>
+                            <button
+                              onClick={() => { setRemovingInventoryItem(item); setIsRemoveInventoryModalOpen(true); }}
+                              className="flex items-center gap-1.5 px-3 py-2 bg-bg border border-ink/5 rounded-xl hover:border-danger-custom/30 hover:text-danger-custom transition-all shadow-sm text-[10px] font-black uppercase tracking-widest whitespace-nowrap"
+                            >
+                              <Trash2 size={13} />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -1240,6 +1270,44 @@ export default function App() {
                 <button type="button" onClick={() => setIsAddInventoryModalOpen(false)} className="flex-1 bg-bg border border-border-custom text-ink/60 py-4 lg:py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-white transition-all">Cancel</button>
                 <button type="submit" className="flex-1 bg-accent text-white py-4 lg:py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-accent/20 hover:bg-accent/90 transition-all">
                   Add Item
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* ── Remove Inventory Item Modal ── */}
+      {isRemoveInventoryModalOpen && removingInventoryItem && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-6 bg-ink/60 backdrop-blur-sm animate-in fade-in duration-300">
+          <div className="bg-white w-full sm:max-w-lg rounded-t-[2.5rem] sm:rounded-[2.5rem] shadow-2xl overflow-hidden animate-in slide-in-from-bottom-8 duration-500 max-h-[95vh] overflow-y-auto">
+            <div className="p-6 lg:p-10 border-b border-ink/5 flex items-center justify-between bg-bg sticky top-0 z-10">
+              <div>
+                <h2 className="text-xl lg:text-2xl font-black text-ink tracking-tighter uppercase">Remove Inventory Item</h2>
+                <p className="text-[10px] text-ink/40 font-bold mt-1 uppercase tracking-widest">
+                  Removing: <span className="text-danger-custom">{removingInventoryItem.name}</span>
+                </p>
+              </div>
+              <button onClick={closeRemoveInventoryModal} className="p-3 hover:bg-white rounded-2xl text-ink/20 hover:text-ink transition-colors">
+                <X size={24} />
+              </button>
+            </div>
+            <form onSubmit={handleRemoveInventoryItem} className="p-6 lg:p-10 space-y-6 lg:space-y-8">
+              <div className="space-y-3">
+                <label className="text-[10px] font-black uppercase tracking-widest text-ink/40 ml-1">Reason for Removal</label>
+                <input
+                  required
+                  type="text"
+                  value={removeInventoryReason}
+                  onChange={e => setRemoveInventoryReason(e.target.value)}
+                  className="w-full bg-bg border border-border-custom rounded-2xl py-4 px-6 text-sm font-bold focus:outline-none focus:border-danger-custom transition-colors"
+                  placeholder="Mistyped entry, Duplicate item..."
+                />
+              </div>
+              <div className="flex gap-4">
+                <button type="button" onClick={closeRemoveInventoryModal} className="flex-1 bg-bg border border-border-custom text-ink/60 py-4 lg:py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] hover:bg-white transition-all">Cancel</button>
+                <button type="submit" className="flex-1 bg-danger-custom text-white py-4 lg:py-5 rounded-2xl font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-danger-custom/20 hover:bg-danger-custom/90 transition-all">
+                  Remove Item
                 </button>
               </div>
             </form>

@@ -44,5 +44,10 @@ export function useInventory(enabled: boolean) {
     await refetch();
   }, [refetch]);
 
-  return { inventory, loading, refetch, adjustStock, importCSV, createItem };
+  const deleteItem = useCallback(async (id: string) => {
+    await inventoryApi.delete(id);
+    await refetch();
+  }, [refetch]);
+
+  return { inventory, loading, refetch, adjustStock, importCSV, createItem, deleteItem };
 }
