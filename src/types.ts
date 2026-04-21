@@ -1,9 +1,11 @@
 
+export type IngredientUnit = 'kg' | 'g' | 'pcs' | 'liters' | 'ml' | 'sacks' | 'grams';
+
 export interface ProductIngredient {
   inventoryItemId: string;
   inventoryItemName: string;
   quantity: number;
-  unit: InventoryItem['unit'];
+  unit: IngredientUnit;
 }
 
 export interface Product {

@@ -53,8 +53,8 @@ import {
 } from 'date-fns';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
-import { Product, ProductIngredient, InventoryItem, Order, OrderItem } from './types';
-import { INVENTORY_UNITS } from './constants';
+import { Product, ProductIngredient, IngredientUnit, InventoryItem, Order, OrderItem } from './types';
+import { INVENTORY_UNITS, COMPATIBLE_INGREDIENT_UNITS } from './constants';
 import { useAuth } from './hooks/useAuth';
 import { useProducts } from './hooks/useProducts';
 import { useInventory } from './hooks/useInventory';
@@ -106,7 +106,7 @@ export default function App() {
     image: '',
     ingredients: []
   });
-  const [ingredientForm, setIngredientForm] = useState({ inventoryItemId: '', quantity: 1 });
+  const [ingredientForm, setIngredientForm] = useState<{ inventoryItemId: string; quantity: number; unit: IngredientUnit }>({ inventoryItemId: '', quantity: 1, unit: 'pcs' });
 
   const [isStockModalOpen, setIsStockModalOpen] = useState(false);
   const [selectedStockItem, setSelectedStockItem] = useState<InventoryItem | null>(null);
@@ -247,7 +247,7 @@ export default function App() {
         <div className="w-full max-w-md bg-white rounded-[2rem] border border-border-custom shadow-2xl p-8 sm:p-10">
           <div className="text-center mb-8 sm:mb-10">
             <h1 className="text-3xl font-black text-ink tracking-tighter">
-              MAI<span className="text-accent">EATERY</span>
+              BENTE<span className="text-accent">EXPRESS</span>
             </h1>
             <p className="text-[10px] text-ink/60 mt-2 uppercase tracking-[0.3em] font-black">Staff Portal</p>
           </div>
@@ -329,7 +329,7 @@ export default function App() {
       }
       await refetchAuditLogs();
       setIsProductModalOpen(false);
-      setIngredientForm({ inventoryItemId: '', quantity: 1 });
+      setIngredientForm({ inventoryItemId: '', quantity: 1, unit: 'pcs' });
     } catch {
       alert('Failed to save product.');
     }
@@ -412,7 +412,7 @@ export default function App() {
     <>
       <div className="p-6 lg:p-8 border-b border-white/5">
         <h1 className="text-2xl font-black text-[#E8E1D9] flex items-center gap-2 tracking-tighter">
-          MAI<span className="text-accent">EATERY</span>
+          BENTE<span className="text-accent">EXPRESS</span>
         </h1>
         <p className="text-[10px] text-[#E8E1D9]/60 mt-1 uppercase tracking-[0.3em] font-black">Inventory System</p>
       </div>
@@ -1210,11 +1210,15 @@ export default function App() {
                   )}
 
                   {/* Add ingredient row */}
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap sm:flex-nowrap">
                     <select
                       value={ingredientForm.inventoryItemId}
-                      onChange={e => setIngredientForm(f => ({ ...f, inventoryItemId: e.target.value }))}
-                      className="flex-1 bg-bg border border-border-custom rounded-2xl py-3 px-4 text-sm font-bold focus:outline-none focus:border-accent transition-colors appearance-none">
+                      onChange={e => {
+                        const item = inventory.find(i => i.id === e.target.value);
+                        const firstUnit = (item ? COMPATIBLE_INGREDIENT_UNITS[item.unit]?.[0] : 'pcs') as IngredientUnit;
+                        setIngredientForm(f => ({ ...f, inventoryItemId: e.target.value, unit: firstUnit ?? 'pcs' }));
+                      }}
+                      className="flex-1 min-w-0 bg-bg border border-border-custom rounded-2xl py-3 px-4 text-sm font-bold focus:outline-none focus:border-accent transition-colors appearance-none">
                       <option value="">Select ingredient...</option>
                       {inventory.map(item => (
                         <option key={item.id} value={item.id}>{item.name} ({item.unit})</option>
@@ -1226,6 +1230,14 @@ export default function App() {
                       onChange={e => setIngredientForm(f => ({ ...f, quantity: Number(e.target.value) }))}
                       className="w-20 bg-bg border border-border-custom rounded-2xl py-3 px-3 text-sm font-bold focus:outline-none focus:border-accent transition-colors"
                       min="0.01" step="0.01" placeholder="Qty" />
+                    <select
+                      value={ingredientForm.unit}
+                      onChange={e => setIngredientForm(f => ({ ...f, unit: e.target.value as IngredientUnit }))}
+                      className="w-24 bg-bg border border-border-custom rounded-2xl py-3 px-3 text-sm font-bold focus:outline-none focus:border-accent transition-colors appearance-none">
+                      {(COMPATIBLE_INGREDIENT_UNITS[inventory.find(i => i.id === ingredientForm.inventoryItemId)?.unit ?? ''] ?? ['pcs']).map(u => (
+                        <option key={u} value={u}>{u}</option>
+                      ))}
+                    </select>
                     <button type="button"
                       onClick={() => {
                         const item = inventory.find(i => i.id === ingredientForm.inventoryItemId);
@@ -1236,12 +1248,12 @@ export default function App() {
                             inventoryItemId: item.id,
                             inventoryItemName: item.name,
                             quantity: ingredientForm.quantity,
-                            unit: item.unit
+                            unit: ingredientForm.unit
                           } as ProductIngredient]
                         }));
-                        setIngredientForm({ inventoryItemId: '', quantity: 1 });
+                        setIngredientForm({ inventoryItemId: '', quantity: 1, unit: 'pcs' });
                       }}
-                      className="flex items-center gap-1 px-4 py-3 bg-accent text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-accent/90 transition-all">
+                      className="flex items-center gap-1 px-4 py-3 bg-accent text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-accent/90 transition-all shrink-0">
                       <Plus size={14} />
                     </button>
                   </div>
